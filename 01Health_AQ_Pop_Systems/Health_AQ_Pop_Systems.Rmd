@@ -1,0 +1,614 @@
+---
+title:  "Healthcare Utilization, Air Quality, and Population Analysis"
+subtitle:  "Using Data Science and GIS to Forecast Future Trends from Historic Data"
+author: "Charles A. Hulebak"
+header-includes:
+- \usepackage{titling}
+- \pretitle{\begin{center}}
+- \posttitle{\end{center}\LARGE\includegraphics[width=6in]{06-Images/GISMap.jpg}\\[\bigskipamount]}
+output:
+  pdf_document:
+    citation_package: natbib
+    df_print: kable
+    fig_crop: no
+    latex_engine: xelatex
+    number_sections: no
+    toc: yes
+    toc_depth: 3
+  html_document:
+    df_print: paged
+    number_sections: no
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+    theme: simplex
+  word_document: default
+geometry:
+- top=2.5cm
+- bottom=2.5cm
+- left=2.5cm
+- right=2.5cm
+- heightrounded
+highlight-style: haddock
+linkcolor: blue
+mainfont: Arial
+fontsize: 11pt
+sansfont: Verdana
+documentclass: report
+urlcolor: blue
+theme: journal
+---
+```{r setup, include=FALSE, echo=FALSE}
+knitr::opts_chunk$set #(echo = TRUE)
+```
+
+# Introduction and Overview
+The intention of developing this digital product on the RStudio platform is to provide a repeatable methodology that can be replicated for similar systems-of-systems analysis from a macro perspective. Applications, analysis, data science, and analytics platforms provide us with the ability to apply repeatable methodologies to achieve a variety of organizational functions while providing the ability to guide investments and future decision-making. The scientific objective of this investigation seeks to determine the relationships between the systems and how one system (outdoor air quality), can influence changes in another system (healthcare utilization).
+
+We have the ability to hypothesize that pollution is not healthy for the environment or human health, however that generalization can be more specifically understood with data science, analysis, mathematical, and statistical processes.
+
+This analysis includes three objectives:
+
+1.	Use historic and present data to forecast future trends
+2.	Discover scientific relationships between outdoor air quality, healthcare utilization, and population
+3.	Provide data visualization on a geographical information system (GIS)
+
+These objectives are supported using statistical analysis, mathematics, and data science techniques.  Present and historic data is used to obtain forecasts that have not been obtained or published, which provides an opportunity for to guide future decisions for the environment and human health.
+
+The datasets used for this analysis include:
+
+•	Population data for the State of California by county^1^
+•	Outdoor Air quality data^2^
+•	Outdoor Air quality sensor locations^3^
+•	Health utilization for the State of California^4^
+•	Cartographic boundary maps for the United States and State of California by county^5,6^
+
+The RStudio platform provides the ability to show the data and processes which accompany this analysis, as well as create a platform that can be continually developed for improvements, updating, and modifying data.
+
+The process for analyzing this data is shown in the following diagram.
+
+## Process Diagram
+```{r warning=FALSE, message=FALSE, out.width='100%', fig.align = 'center', echo=FALSE}
+knitr::include_graphics("06-Images/ProcessDiagram.jpg", dpi = 150)
+```
+```{r warning=FALSE, message=FALSE, echo=FALSE}
+# Install R data science and analysis packages as required
+options(width = 60)
+# Install RTools to build R packages if required
+# https://cran.r-project.org/bin/windows/Rtools/
+if(!require(car))install.packages("car", repos = "http://cran.us.r-project.org")
+if(!require(caret))install.packages("caret", repos = "http://cran.us.r-project.org")
+if(!require(circlize))install.packages("circlize", repos = "http://cran.us.r-project.org")
+if(!require(cluster))install.packages("cluster", repos = "http://cran.us.r-project.org")
+if(!require(corrplot))install.packages("corrplot", repos = "http://cran.us.r-project.org")
+if(!require(cowplot))install.packages("cowplot", repos = "http://cran.us.r-project.org")
+if(!require(data.table))install.packages("data.table", repos = "http://cran.us.r-project.org")
+if(!require(dendextend))install.packages("dendextend", repos = "http://cran.us.r-project.org")
+if(!require(dplyr))install.packages("dplyr", repos = "http://cran.us.r-project.org")
+if(!require(dslabs))install.packages("dslabs", repos = "http://cran.us.r-project.org")
+if(!require(dtwclust))install.packages("dtwclust", repos = "http://cran.us.r-project.org")
+if(!require(dygraphs))install.packages("dygraphs", repos = "http://cran.us.r-project.org")
+if(!require(e1071))install.packages("e1071", repos = "http://cran.us.r-project.org")
+if(!require(factoextra))install.packages("factoextra", repos = "http://cran.us.r-project.org")
+if(!require(FactoMineR))install.packages("FactoMineR", repos = "http://cran.us.r-project.org")
+if(!require(GGally))install.packages("GGally", repos = "http://cran.us.r-project.org")
+if(!require(gganimate))install.packages("gganimate", repos = "http://cran.us.r-project.org")
+if(!require(ggcorrplot))install.packages("ggcorrplot", repos = "http://cran.us.r-project.org")
+if(!require(ggeasy))install.packages("ggeasy", repos = "http://cran.us.r-project.org")
+if(!require(ggplot2))install.packages("ggplot2", repos = "http://cran.us.r-project.org")
+if(!require(ggraph))install.packages("ggraph", repos = "http://cran.us.r-project.org")
+if(!require(ggrepel))install.packages("ggrepel", repos = "http://cran.us.r-project.org")
+if(!require(gplots))install.packages("gplots", repos = "http://cran.us.r-project.org")
+if(!require(grid))install.packages("grid", repos = "http://cran.us.r-project.org")
+if(!require(gridExtra))install.packages("gridExtra", repos = "http://cran.us.r-project.org")
+if(!require(Hmisc))install.packages("Hmisc", repos = "http://cran.us.r-project.org")
+if(!require(hrbrthemes))install.packages("hrbrthemes", repos = "http://cran.us.r-project.org")
+if(!require(htmltools))install.packages("htmltools", repos = "http://cran.us.r-project.org")
+if(!require(igraph))install.packages("igraph", repos = "http://cran.us.r-project.org")
+if(!require(jpeg))install.packages("igraph", repos = "http://cran.us.r-project.org")
+if(!require(kableExtra))install.packages("kableExtra", repos = "http://cran.us.r-project.org")
+if(!require(lubridate))install.packages("lubridate", repos = "http://cran.us.r-project.org")
+if(!require(magrittr))install.packages("magrittr", repos = "http://cran.us.r-project.org")
+if(!require(markdown))install.packages("markdown", repos = "http://cran.us.r-project.org")
+if(!require(PerformanceAnalytics))install.packages("PerformanceAnalytics", repos = "http://cran.us.r-project.org")
+if(!require(plotly))install.packages("plotly", repos = "http://cran.us.r-project.org")
+if(!require(png))install.packages("png", repos = "http://cran.us.r-project.org")
+if(!require(randomForest))install.packages("randomForest", repos = "http://cran.us.r-project.org")
+if(!require(rattle))install.packages("rattle", repos = "http://cran.us.r-project.org")
+if(!require(RColorBrewer))install.packages("RColorBrewer", repos = "http://cran.us.r-project.org")
+if(!require(reshape))install.packages("reshape", repos = "http://cran.us.r-project.org")
+if(!require(scales))install.packages("scales", repos = "http://cran.us.r-project.org")
+if(!require(tidyr))install.packages("tidyr", repos = "http://cran.us.r-project.org")
+if(!require(tidyverse))install.packages("tidyverse", repos = "http://cran.us.r-project.org")
+if(!require(TSclust))install.packages("TSclust", repos = "http://cran.us.r-project.org")
+if(!require(xts))install.packages("xts", repos = "http://cran.us.r-project.org")
+if(!require(mlbench))install.packages("mlbench", repos = "http://cran.us.r-project.org")
+# Install for Knit Package
+# tinytex::install_tinytex(force = TRUE)
+# or, and manually install
+# tinytex:::install_windows_zip()
+```
+
+```{r warning=FALSE, message=FALSE, echo=FALSE}
+# Install RStudio Libraries
+library("car")
+library("caret")
+library("circlize")
+library("cluster")
+library("corrplot")
+library("cowplot")
+library("data.table")
+library("dendextend")
+library("dplyr")
+library("dslabs")
+library("dtwclust")
+library("dygraphs")
+library("e1071")
+library("factoextra")
+library("FactoMineR")
+library("GGally")
+library("gganimate")
+library("ggcorrplot")
+library("ggeasy")
+library("ggplot2")
+library("ggraph")
+library("ggrepel")
+library("gplots")
+library("grid")
+library("gridExtra")
+library("Hmisc")
+library("hrbrthemes")
+library("htmltools")
+library("igraph")
+library("jpeg")
+library("kableExtra")
+library("lubridate")
+library("magrittr")
+library("markdown")
+library("PerformanceAnalytics")
+library("plotly")
+library("png")
+library("randomForest")
+library("rattle")
+library("RColorBrewer")
+library("reshape")
+library("scales")
+library("tidyr")
+library("tidyverse")
+library("TSclust")
+library("xts")
+library("mlbench")
+# library configuration
+library(dplyr, warn.conflicts = FALSE)
+options(dplyr.summarise.inform = FALSE)
+options(digits=3)
+```
+## Standardizing the Datasets
+The processes for standardizing the data for this report included:
+
+•	Exporting comma delimited (.csv) data from Excel formatted (.xlsx) multiple sheet sets
+•	Converting data types, such as characters to numbers, integers, and matrices
+•	Modifying dataset names to reference one another, such as names listed as “County, California” to the simple form of the “county” name
+•	Combining (or merging) multiple referenced sheets into a common file
+• Combining multiple datasets into a single dataset
+•	Exporting files as comma delimited (.csv) files for use in external programs to this application
+
+#	Population data and forecasting
+Estimates of county population totals have been collected by the U.S. Census Bureau for the years specified in this project.   
+```{r warning=FALSE, message=FALSE, out.width='90%', fig.align = 'center', echo=FALSE}
+# Configure the Working Directory
+# Configure in Session/Choose Directory/File path, or local
+# setwd("destination")
+```
+**Import Population Data and Review Summary Statistics**
+Summary statistics provide the ability to review the data, including the data classification, as well as minimum, maximum, mean, median, and quartiles (1st/3rd).
+```{r warning=FALSE, message=FALSE, out.width='90%', fig.align = 'center'}
+options(width = 60)
+Pop <- read.table("01-Population/CAPop_2012-2021.csv",header=TRUE,sep=",")
+summary(Pop[1:12])
+```
+## 2021 Population Forecast 
+The population data initially obtained was for the duration of 2012-2020, however this project was seeking to create forecasted data for 2021.
+
+There are a few different statistical methods that can be used to forecast future data, and a common method used for population includes the Modified Exponential Equation to measure the population over time. The average of the years will be taken into consideration to provide the anticipated result for the final year being calculated. The formula and processes are shown below:
+
+$$ModifiedExponential Equation (population) = target year + (Year 1 + Year 2)^{Time}$$
+```{r warning=FALSE, message=FALSE, out.width='100%', fig.align = 'center', echo=FALSE}
+knitr::include_graphics("06-Images/2021forecast.jpg", dpi = 150)
+```
+These process steps can be completed internally using the R platform, as well as using a multitude of software and database applications.
+
+This data was produced and extracted to a new .csv file for the year 2021 providing the following results.
+```{r warning=FALSE, message=FALSE, out.width='90%', fig.align = 'center', echo=FALSE}
+options(width = 60)
+summary(Pop[13])
+```
+# Air Quality
+```{r warning=FALSE, message=FALSE, out.width='100%', fig.align = 'center', echo=FALSE}
+knitr::include_graphics("06-Images/pollutiongreencontrast.jpg", dpi = 150)
+```
+
+## Outdoor Air Quality Sensors
+The United States Environmental Protection Agency (EPA) has implemented and managed a variety of outdoor air quality sensors.  The data collected includes the geolocations and the type of air quality that is being measured.  The datasets are available for download, with the link provided within the reference section.
+
+```{r warning=FALSE, message=FALSE, out.width='100%', fig.align = 'center'}
+knitr::include_graphics("06-Images/03-EPA.jpg", dpi = 150)
+```
+*Source: Environmental Protection Agency (EPA) Outdoor Air Quality Data Download Website*^2^
+
+The outdoor air quality data consists of fourteen categories across the country, however these vary by county. Within the State of California, there was limited data associated with sulfphur dioxide (SO2) and lead particulates, which was insufficient to perform statistical and mathematical analysis to determine strong correlations. There was sufficient data to provide analysis with ten sensors for 202 county entries between the years of 2012-2021.
+
+A description of the outdoor air quality sensors include:
+
+**•	Ozone (O3) 2nd Max, 4th Max:** The four highest "daily max values" in parts per million by volume (ppm). Take the highest 1-hour value of each day, and pick the top four of those values.
+
+**•	PM2.5 98th %ile:** For PM2.5, the 98th percentile of the daily average measurements in the year. (Note: PM2.5 data reported as parameter 88502 are not included in this summary report. Only federal reference method PM2.5 data reported as parameter 88101 are included in this report.) 
+
+**•	PM2.5 Wtd Mean:** For PM2.5, the Weighted Annual Mean (mean weighted by calendar quarter) for the year. (Note: PM2.5 data reported as parameter 88502 are not included in this summary report. Only federal reference method PM2.5 data reported as parameter 88101  are included in this report.) 
+
+**•	PM10 24-hr 2nd Max:** For PM10, the 2nd highest 24-hour average measurement in the year.
+
+**•	PM10 Annual Mean:** For PM10, the Weighted Annual Mean (mean weighted by calendar quarter) for the year.
+
+**•	CO 1-hr 2nd Max:** For Carbon Monoxide, the 2nd highest 1-hour measurement in the year.
+
+**•	CO 8-hr 2nd Max:** For Carbon Monoxide, the 2nd highest non-overlapping 8-hour average in the year.
+
+**•	NO2 98th %ile:** For Nitrogen Dioxide, the 98th percentile of the daily max 1-hour measurements in the year.
+
+**•	NO2 Annual Mean:** For Nitrogen Dioxide, the annual mean of all the 1-hour measurements in the year.
+
+```{r warning=FALSE, message=FALSE, out.width='60%', fig.align = 'center', echo=FALSE}
+knitr::include_graphics("06-Images/02-AQSensors.jpg", dpi = 150)
+```
+*Image: Outdoor Air Quality Sensors*
+
+**Outdoor Air Quality Data, Sensor Variables**
+```{r warning=FALSE, message=FALSE, out.width='50%', fig.align = 'center', echo=FALSE}
+AQSD <- read.table("02-AQ/AQ_2012-21.csv",header=TRUE,sep=",")
+ls(AQSD)
+```
+**Outdoor Air Quality Sensor Summary Statistics**
+```{r warning=FALSE, message=FALSE, out.width='50%', fig.align = 'center', echo=FALSE}
+summary(AQSD)
+```
+## Air Quality Sensor Data Exploration
+The next step of this process included reviewing the entirety of the data to determine the strongest correlated relationships between the air quality sensors.  The data was standardized which contained 202 counties that contained ten air quality sensors.
+
+**Applying the Pearson Correlation Coefficient Analysis**
+The Pearson correlation coefficient (PCC) is also known as Pearson's r, the Pearson product-moment correlation coefficient (PPMCC), bivariate correlation, or simply as the correlation coefficient.  The Pearson Correlation Coefficient formula used to understand strong and weak relationships to measure the standard deviation, which is a normalized measurement of the covariance value between +1 (indicating a strong relationship), and -1 (indicating a weak relationship).  It provides the ability to measure the linear correlations between two sets of data, and is the ratio between the covariance of two variables and the product of their standard deviations. The simplified formula is as follows:
+
+$$Pearson Correlation Coefficient_{xy} = \frac {n({\sum}_{xy})-({\sum}_{x})({\sum}_{y})}{\sqrt(n\sum_{x^2}-(\sum_{x^2}))(n\sum_{y^2}-(\sum_{y^2}))}$$ 
+Correlation is measured by $r$, where $n$ is the sample size, and $x$ and $y$ are the sample means of x and y values.
+
+**Correlated Air Quality Sensor Data Values**
+```{r warning=FALSE, message=FALSE, out.width='100%', fig.align = 'center'}
+options(width = 60)
+aqdata.cor = cor(AQSD[3:12])
+corplot <- round(aqdata.cor,2)
+corplot
+```
+**Visualization the Correlation of Air Quality Sensor Relationships**
+The values shown within the section along with the color scheme provide the ability to understand the information more clearly.  The values closer to 1 show stronger relationships.
+```{r warning=FALSE, message=FALSE, out.width='100%', fig.align = 'center'} 
+library(corrplot)
+aqdata.cor = cor(AQSD[3:12])
+corrplot(aqdata.cor, method="number", number.cex = .5, tl.cex = .5)
+```
+**Analyzing the Air Quality Sensor Data Values**
+Reviewing this correlation matrix (shown in two separate visualizations with the same data), we can determine the most significant relationships between the air quality sensors.  For example:
+
+*   Common measurements of CO, NO2, Ozone, and PPM values have more significant relationships to their own measurements than to other, however, 
+*   NO2 and Ozone have strong relationships near 0.7
+*   It is evident that PM2.5_WM_24th has higher correlated relationships to the other factors than the other PPM measurements
+
+This information is scientifically significant, however the intention is to determine how these air quality values are associated with populations and healthcare.
+
+# Healthcare data
+Within the State of California, the Office of Statewide Health Planning and Development requires hospitals and healthcare facilities to provide an annual utilization report.  This report provides an extensive amount of information about the statistics of providers and patients within their facilities and is publicly available and can be downloaded from the sourced website.
+
+This data has an average of 500 facilities (in which the quantity fluctuates annually) with approximately 275 categories that are quantitatively measured each year, amounting to roughly 140,000 data points each year that are collected by the state.
+
+The initial step with the healthcare data was to standardize and determine variations with population data.  Although the State of California has 58 counties, the healthcare data only covers 56 counties.  Furthermore, each county contained one or multiple hospitals.  The healthcare data was standardized to include the county name and a summation of the values within the county.  These PIVOT tables were combined into a final spreadsheet including each year, county, as well as the type and quantity of healthcare services that were provided, amounting to over 13,000 data points for each year.    
+
+The second phase of standardization included comparing the row labels, which include information about the healthcare facilities, and the pertinent information we are seeking which includes over 240 healthcare data characteristics such as emergency room visits, licensed bed days, and many others for each county.  The datasets were collected and labeled similarly between 2012-2017, 2018-2019, and 2020 in separate groups.
+
+**Healthcare Utilization Dataset List of Variables**
+```{r warning=FALSE, message=FALSE, out.width='100%', fig.align = 'center'} 
+options(width = 60)
+# Hospital Utilization, sample from 2020
+HUsamp <- read.table("03-HC/2020_hosp_util_dataonly.csv", header=TRUE, sep=",")
+ls(HUsamp[1:5]) # Facility information
+ls(HUsamp[200:210]) # EMS Sample types of data
+```
+# Comparing Healthcare, Air Quality, and Population Data
+The next objective with the healthcare data is to determine the statistical significance between healthcare and air quality data.  It is important to understand that "correlation does not imply causation", meaning that certain factors of air quality data are not the only reason that someone may visit a healthcare facility for a specific reason.  However, the statistical relationships can provide the ability to forecast future utilization for some factors.
+
+This included analyzing healthcare data between 2012-2017 (then later adding additional years with specific features), along with the outdoor air quality between the same years.  The ability to determine the Pearson correlation coefficient of this data provides the ability to examine and recognize relationships between healthcare, air quality, and population.
+
+```{r warning=FALSE, message=FALSE, out.width='100%', fig.align = 'center'} 
+options(width = 60)
+# Hospital Utilization, sample from 2020
+AQHCPOP <- read.table("05-Correlation/2020AQHCPOP.csv", header=TRUE, sep=",")
+ls(AQHCPOP)
+```
+**Data Summary:**
+```{r warning=FALSE, message=FALSE, out.width='100%', fig.align = 'center'} 
+options(width = 60)
+summary(AQHCPOP)
+```
+**Healthcare, Air Quality, and Population Relationships:**
+The previous dataset is shown in this correlation plot.
+```{r warning=FALSE, message=FALSE, out.width='100%', fig.align = 'center'} 
+AQHCPOPdata.cor = cor(AQHCPOP[3:17])
+corrplot(AQHCPOPdata.cor, method="number", number.cex = .5, tl.cex = .5)
+# FinalCorrelation <- corrplot.mixed(AQHCPOPdata.cor, lower.col = "darkblue", order="hclust", number.cex = .7, tl.cex = .7, tl.col = "black")
+```
+This data was outputted into another program, analyzed, and shown in the following image.
+```{r warning=FALSE, message=FALSE, out.width='100%', fig.align = 'center', echo=FALSE} 
+# Correlation Data Plot to Comma Separated Value (csv) File for reference
+# write.csv(AQHCPOPdata.cor, "05-Correlation/AQHCPOP_CORRELATION2.csv")
+```
+
+**Post processed image of Correlation Data**
+```{r warning=FALSE, message=FALSE, out.width='100%', fig.align = 'center', echo=FALSE}
+knitr::include_graphics("06-Images/FinalCorrelation.png", dpi = 150)
+```
+
+The correlation matrix indicates relationships between the variables which are measured by the Euclidean distance.  The Euclidean distance is a value between zero (0) and one (1), and the higher the value the more significant the relationship between the values.
+
+This analysis has shown that the higher presence of NO2 and Ozone, followed closely by CO have higher correlated values to licensed bed total days, emergency room traffic, as well as healthcare registrations without treatment.
+
+**Data Standardization and Final Forecasts**
+The next step of this process included reviewing the entirety of the data to determine the maximum amount of values that were in common and occurred the most frequently for mathematical and statistical purposes.  The detailed process entailed:
+
+1.    Compiling healthcare utilization, air quality, and population data files 
+2.    Initially omitting air quality entries that did not entail all data categories
+3.    Correlating the large dataset to determine the highest values
+4.    Isolating the values of interest, which includes healthcare utilization metrics:
+      a. Sum of HOSP_LICBED_DAY_TOTL
+      b. Sum of ED_TRAFFIC_TOTL
+      c. Sum of EMS_NON_EMERG_VIS
+      d. Sum of EMS_REGISTERS_NO_TREAT
+5.    Revisiting the air quality dataset, to include all counties with air quality values that matched the highest correlation value
+6.    Correlate the new combined dataset
+
+This diagram shows the process, which includes over 120 data objects for over 110 counties and years, amounting to over 13,000 data points for determining the strongest relationships using the this correlation method.  The following steps will show how this data was processed.
+```{r warning=FALSE, message=FALSE, out.width='100%', fig.align = 'center', echo=FALSE}
+knitr::include_graphics("06-Images/largecorrelation.jpg", dpi = 150)
+```
+
+# Results and Conclusion
+The scientific research performed with this data utilized several different techniques while applying analytics, data science, statistics and mathematical processes.  The software platforms enabled the ability to manage, comprehend, and visualize the data using multiple platforms.
+
+The topics of healthcare utilization, poor air quality, and the impact on human health are indicative of negative concerns for society.  However, the ability to understand this information through data enables us to prepare for current and future challenges to appropriately respond.  
+
+This type of research provides many exciting opportunities to consider while improving human health, healthcare systems, and our environment that we live within. 
+
+This data was additionally represented in ESRI's Geographical Information System platform to visualize the data, which may be accessed at https://arcg.is/19iviv.
+
+```{r warning=FALSE, message=FALSE, out.width='100%', fig.align = 'center', echo=FALSE}
+knitr::include_graphics("06-Images/GISmap2.jpg", dpi = 150)
+```
+
+# References and Works Cited{-}
+
+1.    State boundaries: 2018 United States 1:5,000,000 Cartographic Boundary 
+Source: U.S Department of Commerce, U.S Census Bureau, Geographic Customer Services Branch
+Projection: North American Datum (NAD) 1983
+Release Date: 2018
+URL:  census.gov/geographies/mapping-files/time-series/geo/carto-boundary-file.html
+1.    Series Information for County Subdivision State-based (California counties), TIGER/Line Shapefile, 2016
+Source: U.S. Department of Commerce, U.S. Census Bureau, Geography Division, Spatial Data Collection and Products Branch
+Projection: North American Datum (NAD) 1983
+Release Date: 2016
+URL:  census.gov/geographies/mapping-files/time-series/geo/tiger-geodatabase-file.html
+1.    Annual Estimates of the Resident Population: April 1, 2010 to July 1, 2019 (PEPANNRES). 
+Source: U.S. Census Bureau, Population Division 
+Release Date: December 2019
+URL: census.gov/data/tables/time-series/demo/popest/2010s-counties-total.html
+1.    Air Quality Statistics Report, Geographic Area: California, Summary: by County
+Source: U.S. Environmental Protection Agency (EPA) AirData
+Release date (last known from data):  May 2021
+URL: epa.gov/outdoor-air-quality-data/air-quality-statistics-report
+1.    Air Quality Monitor Listing (with site locations)
+Source: U.S. Environmental Protection Agency (EPA) AirData
+Updated annually
+URL: aqs.epa.gov/aqsweb/airdata/download_files.html#Meta
+1.    Annual Utilization Report of Hospitals
+Source: Office of Statewide Health Planning and Development (OSHPD)
+Released annually with different reporting intervals
+URL: data.chhs.ca.gov/dataset/hospital-annual-utilization-report
+
+*Data source URLS are subject to change depending upon the access date of accessing URL
+
+**Keywords**
+Air quality, air quality sensors, California, cartography, county, analytics, data analysis, data relationships, data science, data sets, data visualization, emergency response, environment, geography, geographic information systems (GIS), healthcare data, healthcare utilization, Office of Statewide Health Planning and Development (OSHPD), pearson correlation coefficient, population, preparedness, sensors, spatial data, statistics, U.S. Census Bureau, U.S. Department of Commerce, U.S. Environmental Protection Agency.   
+
+# Attribution-NonCommercial-ShareAlike 4.0 International
+
+Creative Commons Corporation ("Creative Commons") is not a law firm and does not provide legal services or legal advice. Distribution of Creative Commons public licenses does not create a lawyer-client or other relationship. Creative Commons makes its licenses and related information available on an "as-is" basis. Creative Commons gives no warranties regarding its licenses, any material licensed under their terms and conditions, or any related information. Creative Commons disclaims all liability for damages resulting from their use to the fullest extent possible.
+
+Using Creative Commons Public Licenses
+
+Creative Commons public licenses provide a standard set of terms and conditions that creators and other rights holders may use to share original works of authorship and other material subject to copyright and certain other rights specified in the public license below. The following considerations are for informational purposes only, are not exhaustive, and do not form part of our licenses.
+
+Considerations for licensors: Our public licenses are intended for use by those authorized to give the public permission to use material in ways otherwise restricted by copyright and certain other rights. Our licenses are irrevocable. Licensors should read and understand the terms and conditions of the license they choose before applying it.  Licensors should also secure all rights necessary before applying our licenses so that the public can reuse the material as expected. Licensors should clearly mark any material not subject to the license. This includes other CC-licensed material, or material used under an exception or limitation to copyright. More considerations for licensors:
+
+wiki.creativecommons.org/Considerations_for_licensors
+Considerations for the public: By using one of our public licenses, a licensor grants the public permission to use the licensed material under specified terms and conditions. If the licensor's permission is not necessary for any reason—for example, because of any applicable exception or limitation to copyright--then that use is not regulated by the license. Our licenses grant only permissions under copyright and certain other rights that a licensor has authority to grant. Use of the licensed material may still be restricted for other reasons, including because others have copyright or other rights in the material. A licensor may make special requests, such as asking that all changes be marked or described. Although not required by our licenses, you are encouraged to respect those requests where reasonable. More considerations for the public:
+wiki.creativecommons.org/Considerations_for_licensees
+
+=======================================================================
+
+Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+Public License
+
+By exercising the Licensed Rights (defined below), You accept and agree to be bound by the terms and conditions of this Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International Public License ("Public License"). To the extent this Public License may be interpreted as a contract, You are granted the Licensed Rights in consideration of Your acceptance of these terms and conditions, and the Licensor grants You such rights in consideration of benefits the Licensor receives from making the Licensed Material available under these terms and conditions.
+
+Section 1 -- Definitions.
+
+  a. Adapted Material means material subject to Copyright and Similar Rights that is derived from or based upon the Licensed Material and in which the Licensed Material is translated, altered, arranged, transformed, or otherwise modified in a manner requiring permission under the Copyright and Similar Rights held by the Licensor. For purposes of this Public License, where the Licensed Material is a musical work, performance, or sound recording, Adapted Material is always produced where the Licensed Material is synced in timed relation with a moving image.
+
+  b. Adapter's License means the license You apply to Your Copyright and Similar Rights in Your contributions to Adapted Material in accordance with the terms and conditions of this Public License.
+
+  c. BY-NC-SA Compatible License means a license listed at creativecommons.org/compatiblelicenses, approved by Creative Commons as essentially the equivalent of this Public License.
+
+  d. Copyright and Similar Rights means copyright and/or similar rights closely related to copyright including, without limitation, performance, broadcast, sound recording, and Sui Generis Database      Rights, without regard to how the rights are labeled or categorized. For purposes of this Public License, the rights specified in Section 2(b)(1)-(2) are not Copyright and Similar Rights.
+
+  e. Effective Technological Measures means those measures that, in the absence of proper authority, may not be circumvented under laws fulfilling obligations under Article 11 of the WIPO Copyright Treaty adopted on December 20, 1996, and/or similar international agreements.
+
+  f. Exceptions and Limitations means fair use, fair dealing, and/or any other exception or limitation to Copyright and Similar Rights that applies to Your use of the Licensed Material.
+
+  g. License Elements means the license attributes listed in the name of a Creative Commons Public License. The License Elements of this Public License are Attribution, NonCommercial, and ShareAlike.
+
+  h. Licensed Material means the artistic or literary work, database, other material to which the Licensor applied this Public License.
+
+  i. Licensed Rights means the rights granted to You subject to the terms and conditions of this Public License, which are limited to all Copyright and Similar Rights that apply to Your use of the Licensed Material and that the Licensor has authority to license.
+
+  j. Licensor means the individual(s) or entity(ies) granting rights under this Public License.
+
+  k. NonCommercial means not primarily intended for or directed towards commercial advantage or monetary compensation. For purposes of this Public License, the exchange of the Licensed Material for      other material subject to Copyright and Similar Rights by digital file-sharing or similar means is NonCommercial provided there is no payment of monetary compensation in connection with the exchange.
+
+  l. Share means to provide material to the public by any means or process that requires permission under the Licensed Rights, such as reproduction, public display, public performance, distribution,     dissemination, communication, or importation, and to make material available to the public including in ways that members of the may access the material from a place and at a time individually chosen by them.
+
+  m. Sui Generis Database Rights means rights other than copyright resulting from Directive 96/9/EC of the European Parliament and of the Council of 11 March 1996 on the legal protection of databases, as amended and/or succeeded, as well as other essentially equivalent rights anywhere in the world.
+
+  n. You means the individual or entity exercising the Licensed Rights under this Public License. Your has a corresponding meaning.
+
+Section 2 -- Scope.
+
+  a. License grant.
+
+       1. Subject to the terms and conditions of this Public License, Licensor hereby grants You a worldwide, royalty-free, non-sublicensable, non-exclusive, irrevocable license to exercise the Licensed Rights in the Licensed Material to:
+
+            a. reproduce and Share the Licensed Material, in whole or in part, for NonCommercial purposes only; and
+
+            b. produce, reproduce, and Share Adapted Material for NonCommercial purposes only.
+
+       2. Exceptions and Limitations. For the avoidance of doubt, where Exceptions and Limitations apply to Your use, this Public License does not apply, and You do not need to comply with its terms and conditions.
+
+       3. Term. The term of this Public License is specified in Section 6(a).
+
+       4. Media and formats; technical modifications allowed. The Licensor authorizes You to exercise the Licensed Rights in all media and formats whether now known or hereafter created, to make technical modifications necessary to do so. The Licensor waives and/or agrees not to assert any right or authority to forbid You from making technical modifications necessary to exercise the Licensed Rights, including           technical modifications necessary to circumvent Effective Technological Measures. For purposes of this Public License, making modifications authorized by this Section 2(a) (4) never produces Adapted Material.
+
+       5. Downstream recipients.
+
+            a. Offer from the Licensor -- Licensed Material. Every recipient of the Licensed Material automatically receives an offer from the Licensor to exercise the Licensed Rights under the terms and conditions of this Public License.
+
+            b. Additional offer from the Licensor -- Adapted Material.  Every recipient of Adapted Material from You automatically receives an offer from the Licensor to exercise the Licensed Rights in the Adapted Material under the conditions of the Adapter's License You apply.
+
+            c. No downstream restrictions. You may not offer or impose any additional or different terms or conditions on, or apply any Effective Technological Measures to, the Licensed Material if doing so restricts exercise of the Licensed Rights by any recipient of the Licensed Material.
+
+       6. No endorsement. Nothing in this Public License constitutes or may be construed as permission to assert or imply that You are, or that Your use of the Licensed Material is, connected with, or sponsored, endorsed, or granted official status by, Licensor or others designated to receive attribution as provided in Section 3(a)(1)(A)(i).
+
+  b. Other rights.
+
+       1. Moral rights, such as the right of integrity, are not licensed under this Public License, nor are publicity, privacy, and/or other similar personality rights; however, to the extent possible, the Licensor waives and/or agrees not to assert any such rights held by the Licensor to the limited extent necessary to allow You to exercise the Licensed Rights, but not otherwise.
+
+       2. Patent and trademark rights are not licensed under this Public License.
+
+       3. To the extent possible, the Licensor waives any right to collect royalties from You for the exercise of the Licensed Rights, whether directly or through a collecting society under any voluntary or waivable statutory or compulsory licensing scheme. In all other cases the Licensor expressly reserves any right to collect such royalties, including when the Licensed Material is used other than for NonCommercial purposes.
+
+Section 3 -- License Conditions.
+
+Your exercise of the Licensed Rights is expressly made subject to the following conditions.
+
+  a. Attribution.
+
+       1. If You Share the Licensed Material (including in modified form), You must:
+
+            a. retain the following if it is supplied by the Licensor with the Licensed Material:
+
+                 i. identification of the creator(s) of the Licensed Material and any others designated to receive attribution, in any reasonable manner requested by the Licensor (including by pseudonym if designated);
+
+                ii. a copyright notice;
+
+               iii. a notice that refers to this Public License;
+
+                iv. a notice that refers to the disclaimer of
+                    warranties;
+
+                 v. a URI or hyperlink to the Licensed Material to the
+                    extent reasonably practicable;
+
+            b. indicate if You modified the Licensed Material and retain an indication of any previous modifications; and
+
+            c. indicate the Licensed Material is licensed under this Public License, and include the text of, or the URI or hyperlink to, this Public License.
+
+       2. You may satisfy the conditions in Section 3(a)(1) in any reasonable manner based on the medium, means, and context in which You Share the Licensed Material. For example, it may be reasonable to satisfy the conditions by providing a URI or hyperlink to a resource that includes the required information.
+       3. If requested by the Licensor, You must remove any of the information required by Section 3(a)(1)(A) to the extent reasonably practicable.
+
+  b. ShareAlike.
+
+     In addition to the conditions in Section 3(a), if You Share Adapted Material You produce, the following conditions also apply.
+
+       1. The Adapter's License You apply must be a Creative Commons license with the same License Elements, this version or later, or a BY-NC-SA Compatible License.
+
+       2. You must include the text of, or the URI or hyperlink to, the Adapter's License You apply. You may satisfy this condition in any reasonable manner based on the medium, means, and context in which You Share Adapted Material.
+
+       3. You may not offer or impose any additional or different terms conditions on, or apply any Effective Technological Measures to, Adapted Material that restrict exercise of the rights granted under the Adapter's License You apply.
+
+Section 4 -- Sui Generis Database Rights.
+
+Where the Licensed Rights include Sui Generis Database Rights that apply to Your use of the Licensed Material:
+
+  a. for the avoidance of doubt, Section 2(a)(1) grants You the right to extract, reuse, reproduce, and Share all or a substantial portion of the contents of the database for NonCommercial purposes only;
+
+  b. if You include all or a substantial portion of the database contents in a database in which You have Sui Generis Database Rights, then the database in which You have Sui Generis Database Rights (but not its individual contents) is Adapted Material, including for purposes of Section 3(b); and
+  c. You must comply with the conditions in Section 3(a) if You Share or a substantial portion of the contents of the database.
+
+For the avoidance of doubt, this Section 4 supplements and does not replace Your obligations under this Public License where the Licensed Rights include other Copyright and Similar Rights.
+
+Section 5 -- Disclaimer of Warranties and Limitation of Liability.
+
+  a. UNLESS OTHERWISE SEPARATELY UNDERTAKEN BY THE LICENSOR, TO THE EXTENT POSSIBLE, THE LICENSOR OFFERS THE LICENSED MATERIAL AS-IS AND AS-AVAILABLE, AND MAKES NO REPRESENTATIONS OR WARRANTIES OF ANY KIND CONCERNING THE LICENSED MATERIAL, WHETHER EXPRESS, IMPLIED, STATUTORY, OR OTHER. THIS INCLUDES, WITHOUT LIMITATION, WARRANTIES OF TITLE, MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, ABSENCE OF LATENT OR OTHER DEFECTS, ACCURACY, OR THE PRESENCE OR ABSENCE OF ERRORS, WHETHER OR NOT     KNOWN OR DISCOVERABLE. WHERE DISCLAIMERS OF WARRANTIES ARE NOT ALLOWED IN FULL OR IN PART, THIS DISCLAIMER MAY NOT APPLY TO YOU.
+
+  b. TO THE EXTENT POSSIBLE, IN NO EVENT WILL THE LICENSOR BE LIABLE TO YOU ON ANY LEGAL THEORY (INCLUDING, WITHOUT LIMITATION, NEGLIGENCE) OR OTHERWISE FOR ANY DIRECT, SPECIAL, INDIRECT, INCIDENTAL, CONSEQUENTIAL, PUNITIVE, EXEMPLARY, OR OTHER LOSSES, COSTS, EXPENSES, OR DAMAGES ARISING OUT OF THIS PUBLIC LICENSE OR USE OF THE LICENSED MATERIAL, EVEN IF THE LICENSOR HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH LOSSES, COSTS, EXPENSES, OR DAMAGES. WHERE A LIMITATION OF LIABILITY IS NOT ALLOWED IN FULL OR IN PART, THIS LIMITATION MAY NOT APPLY TO YOU.
+
+  c. The disclaimer of warranties and limitation of liability provided above shall be interpreted in a manner that, to the extent possible, most closely approximates an absolute disclaimer and waiver of all liability.
+
+Section 6 -- Term and Termination.
+
+  a. This Public License applies for the term of the Copyright and Similar Rights licensed here. However, if You fail to comply with this Public License, then Your rights under this Public License terminate automatically.
+
+  b. Where Your right to use the Licensed Material has terminated under Section 6(a), it reinstates:
+
+       1. automatically as of the date the violation is cured, provided it is cured within 30 days of Your discovery of the violation; or
+
+       2. upon express reinstatement by the Licensor.
+
+     For the avoidance of doubt, this Section 6(b) does not affect any right the Licensor may have to seek remedies for Your violations of this Public License.
+
+  c. For the avoidance of doubt, the Licensor may also offer the Licensed Material under separate terms or conditions or stop distributing the Licensed Material at any time; however, doing so will not terminate this Public License.
+
+  d. Sections 1, 5, 6, 7, and 8 survive termination of this Public License.
+
+Section 7 -- Other Terms and Conditions.
+
+  a. The Licensor shall not be bound by any additional or different terms or conditions communicated by You unless expressly agreed.
+
+  b. Any arrangements, understandings, or agreements regarding the Licensed Material not stated herein are separate from and independent of the terms and conditions of this Public License.
+
+Section 8 -- Interpretation.
+
+  a. For the avoidance of doubt, this Public License does not, and shall not be interpreted to, reduce, limit, restrict, or impose conditions on any use of the Licensed Material that could lawfully be made without permission under this Public License.
+
+  b. To the extent possible, if any provision of this Public License is deemed unenforceable, it shall be automatically reformed to the minimum extent necessary to make it enforceable. If the provision cannot be reformed, it shall be severed from this Public License without affecting the enforceability of the remaining terms and conditions.
+
+  c. No term or condition of this Public License will be waived and no failure to comply consented to unless expressly agreed to by the Licensor.
+
+  d. Nothing in this Public License constitutes or may be interpreted as a limitation upon, or waiver of, any privileges and immunities that apply to the Licensor or You, including from the legal processes of any jurisdiction or authority.
+
+=======================================================================
+
+Creative Commons is not a party to its public licenses. Notwithstanding, Creative Commons may elect to apply one of its public licenses to material it publishes and in those instances will be considered the “Licensor.” The text of the Creative Commons public licenses is dedicated to the public domain under the CC0 Public Domain Dedication. Except for the limited purpose of indicating that material is shared under a Creative Commons public license or as otherwise permitted by the Creative Commons policies published at creativecommons.org/policies, Creative Commons does not authorize the use of the trademark "Creative Commons" or any other trademark or logo of Creative Commons without its prior written consent including, without limitation, in connection with any unauthorized modifications to any of its public licenses or any other arrangements, understandings, or agreements concerning use of licensed material. For the avoidance of doubt, this paragraph does not form part of the public licenses.
+
+Creative Commons may be contacted at creativecommons.org.
+```{r fig.show = "hold", out.width = "40%", fig.align = "center", echo=FALSE}
+knitr::include_graphics("06-Images/CC-BY-NC-SA-Image.jpg", dpi = 150) 
+```
+
+This data may also be protected by the California Consumer Privacy Act (CCPA), GDPR, and other legal restriction depending upon your jurisdiction.
+
+The data is publicly available and shared within the works cited section.  Please download the data for yourself and create meaningful value, while respecting the investment of time, training, education, time, and processes used to develop this publication as a digital product.  Thank you for taking time to read, learn, and hopefully inspiration to contribute towards a better future for all of us.
